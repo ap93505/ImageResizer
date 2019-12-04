@@ -9,10 +9,10 @@ namespace ImageResizer
 {
     class Program
     {
-        static void Main(string[] args)
+        static async Task Main(string[] args)
         {
-            string sourcePath = Path.Combine(Environment.CurrentDirectory, "images");
-            string destinationPath = Path.Combine(Environment.CurrentDirectory, "output"); ;
+            string sourcePath = @"C:\Users\kevinchen\Desktop\ImageResizer\ImageResizer\images"; // Path.Combine(Environment.CurrentDirectory, "images");
+            string destinationPath = @"C:\Users\kevinchen\Desktop\ImageResizer\ImageResizer\output"; // Path.Combine(Environment.CurrentDirectory, "output"); ;
 
             ImageProcess imageProcess = new ImageProcess();
 
@@ -20,10 +20,11 @@ namespace ImageResizer
 
             Stopwatch sw = new Stopwatch();
             sw.Start();
-            imageProcess.ResizeImages(sourcePath, destinationPath, 2.0);
+            await imageProcess.ResizeImagesAsync(sourcePath, destinationPath, 2.0);
             sw.Stop();
 
             Console.WriteLine($"花費時間: {sw.ElapsedMilliseconds} ms");
+            Console.ReadKey();
         }
     }
 }

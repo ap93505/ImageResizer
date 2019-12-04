@@ -1,8 +1,11 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace ImageResizer
 {
@@ -42,6 +45,7 @@ namespace ImageResizer
             {
                 Image imgPhoto = Image.FromFile(filePath);
                 string imgName = Path.GetFileNameWithoutExtension(filePath);
+                Console.WriteLine($"Start {imgName}, using thread ID: {Thread.CurrentThread.ManagedThreadId}");
 
                 int sourceWidth = imgPhoto.Width;
                 int sourceHeight = imgPhoto.Height;
@@ -49,13 +53,48 @@ namespace ImageResizer
                 int destionatonWidth = (int)(sourceWidth * scale);
                 int destionatonHeight = (int)(sourceHeight * scale);
 
-                Bitmap processedImage = processBitmap((Bitmap)imgPhoto,
+                Bitmap processedImage = ProcessBitmap((Bitmap)imgPhoto,
                     sourceWidth, sourceHeight,
                     destionatonWidth, destionatonHeight);
 
                 string destFile = Path.Combine(destPath, imgName + ".jpg");
                 processedImage.Save(destFile, ImageFormat.Jpeg);
+                Console.WriteLine($"End {imgName}, releasing thread ID: {Thread.CurrentThread.ManagedThreadId}");
             }
+        }
+
+        public async Task ResizeImagesAsync(string sourcePath, string destPath, double scale)
+        {
+            var allFiles = FindImages(sourcePath);
+            List<Task> taskList = new List<Task>();
+
+            foreach (var filePath in allFiles)
+            {
+                Task task = Task.Run(async () =>
+                {
+                    Image imgPhoto = Image.FromFile(filePath);
+                    string imgName = Path.GetFileNameWithoutExtension(filePath);
+                    Console.WriteLine($"Start {imgName}, using thread ID: {Thread.CurrentThread.ManagedThreadId}");
+
+                    int sourceWidth = imgPhoto.Width;
+                    int sourceHeight = imgPhoto.Height;
+
+                    int destionatonWidth = (int)(sourceWidth * scale);
+                    int destionatonHeight = (int)(sourceHeight * scale);
+
+                    Bitmap processedImage = await ProcessBitmapAsync((Bitmap)imgPhoto,
+                        sourceWidth, sourceHeight,
+                        destionatonWidth, destionatonHeight);
+
+                    string destFile = Path.Combine(destPath, imgName + ".jpg");
+                    processedImage.Save(destFile, ImageFormat.Jpeg);
+                    Console.WriteLine($"End {imgName}, releasing thread ID: {Thread.CurrentThread.ManagedThreadId}");
+                });
+
+                taskList.Add(task);
+            }
+
+            await Task.WhenAll(taskList);
         }
 
         /// <summary>
@@ -81,7 +120,7 @@ namespace ImageResizer
         /// <param name="newWidth">新圖片的寬度</param>
         /// <param name="newHeight">新圖片的高度</param>
         /// <returns></returns>
-        Bitmap processBitmap(Bitmap img, int srcWidth, int srcHeight, int newWidth, int newHeight)
+        Bitmap ProcessBitmap(Bitmap img, int srcWidth, int srcHeight, int newWidth, int newHeight)
         {
             Bitmap resizedbitmap = new Bitmap(newWidth, newHeight);
             Graphics g = Graphics.FromImage(resizedbitmap);
@@ -93,6 +132,24 @@ namespace ImageResizer
                 new Rectangle(0, 0, srcWidth, srcHeight),
                 GraphicsUnit.Pixel);
             return resizedbitmap;
+        }
+
+        Task<Bitmap> ProcessBitmapAsync(Bitmap img, int srcWidth, int srcHeight, int newWidth, int newHeight)
+        {
+            var task = Task.Run(() => {
+                Bitmap resizedbitmap = new Bitmap(newWidth, newHeight);
+                Graphics g = Graphics.FromImage(resizedbitmap);
+                g.InterpolationMode = InterpolationMode.High;
+                g.SmoothingMode = SmoothingMode.HighQuality;
+                g.Clear(Color.Transparent);
+                g.DrawImage(img,
+                    new Rectangle(0, 0, newWidth, newHeight),
+                    new Rectangle(0, 0, srcWidth, srcHeight),
+                    GraphicsUnit.Pixel);
+                return resizedbitmap;
+            });
+
+            return task;
         }
     }
 }
