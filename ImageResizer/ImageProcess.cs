@@ -63,14 +63,14 @@ namespace ImageResizer
             }
         }
 
-        public async Task ResizeImagesAsync(string sourcePath, string destPath, double scale)
+        public Task ResizeImagesAsync(string sourcePath, string destPath, double scale, CancellationToken token)
         {
             var allFiles = FindImages(sourcePath);
             List<Task> taskList = new List<Task>();
 
             foreach (var filePath in allFiles)
             {
-                Task task = Task.Run(async () =>
+                Task task = Task.Run(() =>
                 {
                     Image imgPhoto = Image.FromFile(filePath);
                     string imgName = Path.GetFileNameWithoutExtension(filePath);
@@ -82,7 +82,12 @@ namespace ImageResizer
                     int destionatonWidth = (int)(sourceWidth * scale);
                     int destionatonHeight = (int)(sourceHeight * scale);
 
-                    Bitmap processedImage = await ProcessBitmapAsync((Bitmap)imgPhoto,
+                    if (token.IsCancellationRequested)
+                    {
+                        return;
+                    }
+
+                    Bitmap processedImage = ProcessBitmap((Bitmap)imgPhoto,
                         sourceWidth, sourceHeight,
                         destionatonWidth, destionatonHeight);
 
@@ -94,7 +99,7 @@ namespace ImageResizer
                 taskList.Add(task);
             }
 
-            await Task.WhenAll(taskList);
+            return Task.WhenAll(taskList);
         }
 
         /// <summary>
@@ -122,6 +127,7 @@ namespace ImageResizer
         /// <returns></returns>
         Bitmap ProcessBitmap(Bitmap img, int srcWidth, int srcHeight, int newWidth, int newHeight)
         {
+            Console.WriteLine($"Processing, sub-thread ID: {Thread.CurrentThread.ManagedThreadId}");
             Bitmap resizedbitmap = new Bitmap(newWidth, newHeight);
             Graphics g = Graphics.FromImage(resizedbitmap);
             g.InterpolationMode = InterpolationMode.High;
@@ -136,6 +142,7 @@ namespace ImageResizer
 
         Task<Bitmap> ProcessBitmapAsync(Bitmap img, int srcWidth, int srcHeight, int newWidth, int newHeight)
         {
+            Console.WriteLine($"Processing, sub-thread ID: {Thread.CurrentThread.ManagedThreadId}");
             var task = Task.Run(() => {
                 Bitmap resizedbitmap = new Bitmap(newWidth, newHeight);
                 Graphics g = Graphics.FromImage(resizedbitmap);
